@@ -1,3 +1,4 @@
+import javax.sql.DataSource;
 import java.sql.*;
 
 /**
@@ -5,53 +6,163 @@ import java.sql.*;
  */
 public class UserDao {
 
-    private ConnectionMaker ConnectionMaker;
+    private DataSource dataSource;
 
-    public UserDao(){
-        this.ConnectionMaker = new DConnectionMaker();
+
+//    public UserDao(ConnectionMaker connectionMaker){
+//        this.dataSource = connectionMaker;
+//    }
+
+    public UserDao() {
     }
 
     public User get(Long id) throws ClassNotFoundException, SQLException {
-        Connection connection = ConnectionMaker.getConnection();
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+        User user = null;
+        try {
+            connection = dataSource.getConnection();
 
-        PreparedStatement preparedStatement = connection.prepareStatement(
-                "select * from userinfo where id = ?");
-        preparedStatement.setLong(1, id);
+            StatementStrategy statementStrategy = new GetUserStatementStrategy(id);
+            preparedStatement = statementStrategy.makestatement(connection);
 
-        ResultSet resultSet = preparedStatement.executeQuery();
-        resultSet.next();
+            resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
 
-        User user = new User();
-        user.setId(resultSet.getLong("id"));
-        user.setName(resultSet.getString("name"));
-        user.setPassword(resultSet.getString("password"));
-
-        resultSet.close();
-        preparedStatement.close();
-        connection.close();
+                user = new User();
+                user.setId(resultSet.getLong("id"));
+                user.setName(resultSet.getString("name"));
+                user.setPassword(resultSet.getString("password"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            if (resultSet != null) {
+                try {
+                    resultSet.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (preparedStatement != null) {
+                try {
+                    preparedStatement.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
 
         return user;
     }
 
-    public void add(User user) throws SQLException, ClassNotFoundException {
-        //사용자는 어디에 저장되있는거지
-        //Database를 사용해보자
-        //어떤 DB를 사용하지
-        //Mysql을 사용해보자
-        //Connection을 맺고
-        Connection connection = ConnectionMaker.getConnection();
-        //쿼리를 만들어서
-        PreparedStatement preparedStatement = connection.prepareStatement(
-                "insert into userinfo(id, name, password) values(?, ?, ?)");
-        preparedStatement.setLong(1, user.getId());
-        preparedStatement.setString(2, user.getName());
-        preparedStatement.setString(3, user.getPassword());
-
-        //실행시키고
-        preparedStatement.executeUpdate();
-
-        //지원을 해지한다.
-        preparedStatement.close();
-        connection.close();
+    private PreparedStatement makestatement(Long id, Connection connection, PreparedStatement preparedStatement, String sql) throws SQLException {
+        preparedStatement = connection.prepareStatement(sql);
+        preparedStatement.setLong(1, id);
+        return preparedStatement;
     }
+
+    public Long add(User user) throws SQLException, ClassNotFoundException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+        Long id = null;
+        try {
+            connection = dataSource.getConnection();
+
+            StatementStrategy statementStrategy = new AddUserStatementStrategy(user);
+            preparedStatement = statementStrategy.makestatement(connection);
+
+
+
+            preparedStatement.executeUpdate();
+
+            id = getLastInsertId(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            if (preparedStatement != null) {
+                try {
+                    preparedStatement.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return id;
+    }
+
+    private Long getLastInsertId(Connection connection) throws SQLException {
+        PreparedStatement preparedStatement2 = connection.prepareStatement(
+                "select last_insert_id()");
+
+        ResultSet resultSet = preparedStatement2.executeQuery();
+        resultSet.next();
+
+        Long id = resultSet.getLong(1);
+
+        resultSet.close();
+        preparedStatement2.close();
+        return id;
+
+    }
+
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public void delete(Long id) throws SQLException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+        try {
+            connection = dataSource.getConnection();
+
+            StatementStrategy statementStrategy = new DeleteUserStatementStrategy(id);
+            preparedStatement = statementStrategy.makestatement(connection);
+
+            preparedStatement.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw e;
+        } finally {
+            if (preparedStatement != null) {
+                try {
+                    preparedStatement.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
+
+//    public void setConnectionMaker(ConnectionMaker connectionMaker) {
+//        this.dataSource = connectionMaker;
+//    }
 }

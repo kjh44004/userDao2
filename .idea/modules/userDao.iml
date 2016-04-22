@@ -8,6 +8,6 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="mysql-connector-java-5.1.38-bin" level="application" />
+    <orderEntry type="library" name="spring-jdbc-4.2.5.RELEASE" level="project" />
   </component>
 </module>
